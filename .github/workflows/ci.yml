@@ -94,11 +94,21 @@ jobs:
         run: python src/pipeline/promote_if_better.py
 
   build_and_push_image:
-    needs: retrain_and_promote
-    if: always() && (needs.retrain_and_promote.result == 'success' || needs.retrain_and_promote.result == 'skipped')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Docker image
-        run: docker build -f deployment/Dockerfile -t retail-forecast-api:${{ github.sha }} .
-      # docker push step omitted -- add registry login + push for production deploymen
+  needs: retrain_and_promote
+  if: always() && (needs.retrain_and_promote.result == 'success' || needs.retrain_and_promote.result == 'skipped')
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+    - run: pip install -r requirements.txt
+
+    - name: Generate data and train model for Docker build
+      run: |
+        python src/data/generate_synthetic_data.py
+        python src/features/build_features.py
+        python src/training/train.py
+
+    - name: Build Docker image
+      run: docker build -f deployment/Dockerfile -t retail-forecast-api:${{ github.sha }} .
