@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+mlflow.db
+mlruns/
+data/processed/*
+!data/processed/.gitkeep
+*.log
+.streamlit/
+.DS_Store
+data/raw/*.csv
+venv/

@@ -1,0 +1,14 @@
+pandas==2.3.3
+numpy==2.4.4
+lightgbm==4.6.0
+scikit-learn==1.8.0
+mlflow==3.14.0
+fastapi==0.138.0
+uvicorn[standard]==0.30.0
+pydantic==2.13.4
+pandera==0.32.0
+evidently==0.7.21
+streamlit==1.58.0
+pyarrow==24.0.0
+prometheus-fastapi-instrumentator==7.0.0
+pytest==8.3.2

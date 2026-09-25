@@ -1,0 +1,112 @@
+name: retail-mlops-ci-cd
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"   # also check daily for cost-based drift, not just on code pushes
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: pytest tests/ -v
+
+  data_and_features:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+
+      - name: Pull data with DVC
+        run: |
+          pip install dvc
+          dvc pull || echo "No remote configured yet -- using local data/raw"
+
+      - name: Validate schema
+        run: python src/data/validate.py
+
+      - name: Build features
+        run: python src/features/build_features.py
+
+      - name: Fold in any pending manager overrides
+        run: python src/feedback/fold_into_training.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: features
+          path: data/processed/features.parquet
+
+  cost_based_retrain_check:
+    needs: data_and_features
+    runs-on: ubuntu-latest
+    outputs:
+      should_retrain: ${{ steps.check.outputs.should_retrain }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: features
+          path: data/processed/
+
+      - name: Run cost-based retrain trigger
+        id: check
+        run: |
+          python src/pipeline/retrain_trigger.py
+          echo "should_retrain=$([ $? -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+        continue-on-error: true   # exit code 2 means "retrain needed" -- not a pipeline failure
+
+  retrain_and_promote:
+    needs: cost_based_retrain_check
+    if: needs.cost_based_retrain_check.outputs.should_retrain == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: features
+          path: data/processed/
+
+      - name: Retrain model
+        run: python src/training/train.py
+
+      # In a full setup, this step would compare the new MLflow run's
+      # business_cost_avg_per_row metric against the current production
+      # model's metric (pulled from the MLflow registry) and only call
+      # `mlflow models transition` to Production if the new model wins.
+      # Kept manual/scripted here to stay within course scope -- see README.
+      - name: Promote model if it beats production on cost
+        run: python src/pipeline/promote_if_better.py
+
+  build_and_push_image:
+    needs: retrain_and_promote
+    if: always() && (needs.retrain_and_promote.result == 'success' || needs.retrain_and_promote.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -f deployment/Dockerfile -t retail-forecast-api:${{ github.sha }} .
+      # docker push step omitted -- add your registry login + push here
