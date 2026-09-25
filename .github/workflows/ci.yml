@@ -101,4 +101,4 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -f deployment/Dockerfile -t retail-forecast-api:${{ github.sha }} .
-      # docker push step omitted -- add registry login + push for production deployment
+      # docker push step omitted -- add registry login + push for production deploymen
