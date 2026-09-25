@@ -111,4 +111,4 @@ jobs:
         python src/training/train.py
 
     - name: Build Docker image
-      run: docker build -f deployment/Dockerfile -t retail-forecast-api:${{ github.sha }} .
+      run: docker build -f deployment/Dockerfile -t retail-forecast-api:${{ github.sha }} 
