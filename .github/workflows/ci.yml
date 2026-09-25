@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "0 3 * * *"   # also check daily for cost-based drift, not just on code pushes
+    - cron: "0 3 * * *"
   workflow_dispatch: {}
 
 jobs:
@@ -12,14 +12,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install dependencies
         run: pip install -r requirements.txt
-
       - name: Run unit tests
         run: pytest tests/ -v
 
@@ -33,10 +30,8 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
 
-      - name: Pull data with DVC
-        run: |
-          pip install dvc
-          dvc pull || echo "No remote configured yet -- using local data/raw"
+      - name: Generate synthetic data (CI environment - no DVC remote)
+        run: python src/data/generate_synthetic_data.py
 
       - name: Validate schema
         run: python src/data/validate.py
@@ -68,12 +63,14 @@ jobs:
           name: features
           path: data/processed/
 
+      - name: Generate synthetic data for trigger check
+        run: python src/data/generate_synthetic_data.py
+
       - name: Run cost-based retrain trigger
         id: check
         run: |
-          python src/pipeline/retrain_trigger.py
-          echo "should_retrain=$([ $? -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-        continue-on-error: true   # exit code 2 means "retrain needed" -- not a pipeline failure
+          python src/pipeline/retrain_trigger.py && echo "should_retrain=false" >> "$GITHUB_OUTPUT" || echo "should_retrain=true" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
 
   retrain_and_promote:
     needs: cost_based_retrain_check
@@ -93,11 +90,6 @@ jobs:
       - name: Retrain model
         run: python src/training/train.py
 
-      # In a full setup, this step would compare the new MLflow run's
-      # business_cost_avg_per_row metric against the current production
-      # model's metric (pulled from the MLflow registry) and only call
-      # `mlflow models transition` to Production if the new model wins.
-      # Kept manual/scripted here to stay within course scope -- see README.
       - name: Promote model if it beats production on cost
         run: python src/pipeline/promote_if_better.py
 
@@ -109,4 +101,4 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Docker image
         run: docker build -f deployment/Dockerfile -t retail-forecast-api:${{ github.sha }} .
-      # docker push step omitted -- add your registry login + push here
+      # docker push step omitted -- add registry login + push for production deployment
