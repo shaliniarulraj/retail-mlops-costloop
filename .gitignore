@@ -5,6 +5,7 @@ mlflow.db
 mlruns/
 data/processed/*
 !data/processed/.gitkeep
+!data/processed/model.txt
 *.log
 .streamlit/
 .DS_Store
