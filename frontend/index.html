@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Console</title>
+<style>
+  :root {
+    --navy: #1f2d3d;
+    --slate: #4a5a6a;
+    --line: #d8dee4;
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --accent: #b5651d;
+    --accent-dark: #8f4e16;
+    --ok: #2e7d32;
+    --warn: #b5651d;
+    --err: #b3261e;
+    --text: #1f2d3d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Calibri, "Segoe UI", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.3px;
+  }
+  #status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    background: rgba(255,255,255,0.08);
+    padding: 6px 12px;
+    border-radius: 3px;
+  }
+  #status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #999;
+  }
+  #status-dot.live { background: #4caf50; }
+  #status-dot.down { background: #d32f2f; }
+  #status-dot.checking { background: #b5651d; }
+
+  main {
+    max-width: 960px;
+    margin: 28px auto;
+    padding: 0 20px 60px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  @media (min-width: 780px) {
+    main { grid-template-columns: 1fr 1fr; }
+    .full { grid-column: 1 / -1; }
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 22px 24px;
+  }
+  section.card h2 {
+    font-size: 15px;
+    margin: 0 0 16px;
+    color: var(--navy);
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 8px;
+  }
+  label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--slate);
+    margin: 12px 0 4px;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  button {
+    margin-top: 18px;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 3px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { background: #16202c; }
+  button.secondary {
+    background: var(--accent);
+  }
+  button.secondary:hover { background: var(--accent-dark); }
+  button:disabled { background: #9aa5af; cursor: not-allowed; }
+
+  .result-box {
+    margin-top: 16px;
+    padding: 14px 16px;
+    border-radius: 3px;
+    background: #f0f3f5;
+    border: 1px solid var(--line);
+    font-size: 13.5px;
+    display: none;
+  }
+  .result-box.show { display: block; }
+  .result-box .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+  }
+  .result-box .row span:first-child { color: var(--slate); }
+  .result-box .row span:last-child { font-weight: 600; }
+  .error-box {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 3px;
+    background: #fbeceb;
+    border: 1px solid #e3b3af;
+    color: var(--err);
+    font-size: 13px;
+    display: none;
+  }
+  .error-box.show { display: block; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  th { color: var(--slate); font-weight: 600; font-size: 12px; }
+  .log-empty {
+    color: var(--slate);
+    font-size: 13px;
+    padding: 10px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Inventory Console</h1>
+  <div id="status-pill">
+    <div id="status-dot" class="checking"></div>
+    <span id="status-text">Checking API...</span>
+  </div>
+</header>
+
+<main>
+
+  <section class="card">
+    <h2>Get Recommendation</h2>
+    <form id="rec-form">
+      <label for="store">Store ID</label>
+      <input type="text" id="store" placeholder="e.g. 12" required>
+
+      <label for="sku">SKU ID</label>
+      <input type="text" id="sku" placeholder="e.g. FOODS_3_090" required>
+
+      <label for="date">Date</label>
+      <input type="date" id="date" required>
+
+      <button type="submit" id="rec-submit">Get Recommendation</button>
+    </form>
+    <div class="error-box" id="rec-error"></div>
+    <div class="result-box" id="rec-result"></div>
+  </section>
+
+  <section class="card">
+    <h2>Manager Override</h2>
+    <form id="override-form">
+      <label for="ov-store">Store ID</label>
+      <input type="text" id="ov-store" placeholder="e.g. 12" required>
+
+      <label for="ov-sku">SKU ID</label>
+      <input type="text" id="ov-sku" placeholder="e.g. FOODS_3_090" required>
+
+      <label for="ov-qty">Overridden Quantity</label>
+      <input type="number" id="ov-qty" min="0" required>
+
+      <label for="ov-reason">Reason</label>
+      <textarea id="ov-reason" placeholder="e.g. local event expected to raise footfall" required></textarea>
+
+      <button type="submit" id="ov-submit" class="secondary">Submit Override</button>
+    </form>
+    <div class="error-box" id="ov-error"></div>
+    <div class="result-box" id="ov-result"></div>
+  </section>
+
+  <section class="card full">
+    <h2>Daily Forecasts</h2>
+    <div id="daily-status" class="log-empty">Loading today's forecasts...</div>
+    <table id="daily-table" style="display:none">
+      <thead>
+        <tr><th>Store</th><th>SKU</th><th>Date</th><th>Predicted demand</th><th>Reorder qty</th><th>Safety stock</th><th>Weekend</th><th>Special day</th></tr>
+      </thead>
+      <tbody id="daily-body"></tbody>
+    </table>
+  </section>
+
+  <section class="card full">
+    <h2>Recent Overrides</h2>
+    <div id="log-wrap">
+      <div class="log-empty" id="log-empty">No overrides submitted this session.</div>
+      <table id="log-table" style="display:none">
+        <thead>
+          <tr><th>Store</th><th>SKU</th><th>Qty</th><th>Reason</th><th>Time</th></tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const API_BASE = "https://costloop-forecast-api.onrender.com";
+
+// ---- Status check ----
+const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+
+async function checkStatus() {
+  statusDot.className = 'checking';
+  statusText.textContent = 'Checking API...';
+  try {
+    const res = await fetch(`${API_BASE}/health`, { method: 'GET' });
+    if (res.ok) {
+      statusDot.className = 'live';
+      statusText.textContent = 'API live';
+    } else {
+      throw new Error('bad status');
+    }
+  } catch (e) {
+    statusDot.className = 'down';
+    statusText.textContent = 'API waking up — retrying';
+    setTimeout(checkStatus, 5000);
+  }
+}
+checkStatus();
+
+// ---- Daily forecasts (auto-loads, no input) ----
+const dailyStatus = document.getElementById('daily-status');
+const dailyTable = document.getElementById('daily-table');
+const dailyBody = document.getElementById('daily-body');
+
+async function loadDailyForecasts() {
+  dailyStatus.textContent = "Loading today's forecasts...";
+  dailyStatus.style.display = 'block';
+  dailyTable.style.display = 'none';
+  try {
+    const res = await fetch(`${API_BASE}/daily-forecasts?limit=25`);
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    const rows = await res.json();
+    if (!rows.length) {
+      dailyStatus.textContent = 'No forecasts available.';
+      return;
+    }
+    dailyBody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.store_id}</td>
+        <td>${r.sku_id}</td>
+        <td>${r.date}</td>
+        <td>${r.predicted_demand}</td>
+        <td>${r.recommended_order_qty}</td>
+        <td>${r.safety_stock}</td>
+        <td>${r.is_weekend ? 'Yes' : 'No'}</td>
+        <td>${r.is_special_day ? 'Yes' : 'No'}</td>
+      </tr>
+    `).join('');
+    dailyStatus.style.display = 'none';
+    dailyTable.style.display = 'table';
+  } catch (err) {
+    dailyStatus.textContent = err.message.includes('fetch')
+      ? "API waking up — daily forecasts will load automatically once it's ready."
+      : `Could not load daily forecasts: ${err.message}`;
+    setTimeout(loadDailyForecasts, 8000);
+  }
+}
+loadDailyForecasts();
+
+// ---- Recommendation form ----
+const recForm = document.getElementById('rec-form');
+const recSubmit = document.getElementById('rec-submit');
+const recResult = document.getElementById('rec-result');
+const recError = document.getElementById('rec-error');
+
+recForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  recResult.classList.remove('show');
+  recError.classList.remove('show');
+  recSubmit.disabled = true;
+  recSubmit.textContent = 'Fetching...';
+
+  const payload = {
+    store_id: document.getElementById('store').value,
+    sku_id: document.getElementById('sku').value,
+    date: document.getElementById('date').value
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/recommend-by-date`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    const data = await res.json();
+
+    recResult.innerHTML = `
+      <div class="row"><span>Predicted demand</span><span>${data.predicted_demand ?? '—'}</span></div>
+      <div class="row"><span>Recommended reorder qty</span><span>${data.recommended_order_qty ?? '—'}</span></div>
+      <div class="row"><span>Safety stock</span><span>${data.safety_stock ?? '—'}</span></div>
+    `;
+    recResult.classList.add('show');
+  } catch (err) {
+    recError.textContent = err.message.includes('fetch')
+      ? 'Could not reach the API. It may still be waking up — try again in a few seconds.'
+      : err.message;
+    recError.classList.add('show');
+  } finally {
+    recSubmit.disabled = false;
+    recSubmit.textContent = 'Get Recommendation';
+  }
+});
+
+// ---- Override form ----
+const ovForm = document.getElementById('override-form');
+const ovSubmit = document.getElementById('ov-submit');
+const ovResult = document.getElementById('ov-result');
+const ovError = document.getElementById('ov-error');
+const logBody = document.getElementById('log-body');
+const logTable = document.getElementById('log-table');
+const logEmpty = document.getElementById('log-empty');
+
+ovForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  ovResult.classList.remove('show');
+  ovError.classList.remove('show');
+  ovSubmit.disabled = true;
+  ovSubmit.textContent = 'Submitting...';
+
+  const store = document.getElementById('ov-store').value;
+  const sku = document.getElementById('ov-sku').value;
+  const qty = document.getElementById('ov-qty').value;
+  const reason = document.getElementById('ov-reason').value;
+
+  try {
+    const res = await fetch(`${API_BASE}/override`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ store_id: store, sku_id: sku, overridden_qty: Number(qty), reason })
+    });
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+    ovResult.innerHTML = `<div class="row"><span>Status</span><span>Logged</span></div>`;
+    ovResult.classList.add('show');
+
+    logEmpty.style.display = 'none';
+    logTable.style.display = 'table';
+    const row = document.createElement('tr');
+    const time = new Date().toLocaleTimeString();
+    row.innerHTML = `<td>${store}</td><td>${sku}</td><td>${qty}</td><td>${reason}</td><td>${time}</td>`;
+    logBody.prepend(row);
+
+    ovForm.reset();
+  } catch (err) {
+    ovError.textContent = err.message.includes('fetch')
+      ? 'Could not reach the API. It may still be waking up — try again in a few seconds.'
+      : err.message;
+    ovError.classList.add('show');
+  } finally {
+    ovSubmit.disabled = false;
+    ovSubmit.textContent = 'Submit Override';
+  }
+});
+</script>
+
+</body>
+</html>
