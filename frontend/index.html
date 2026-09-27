@@ -433,13 +433,38 @@
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script>
-const CHARTS_AVAILABLE = typeof Chart !== 'undefined';
-if (CHARTS_AVAILABLE) {
-  Chart.defaults.font.family = "Calibri, 'Segoe UI', Arial, sans-serif";
-  Chart.defaults.color = "#5b6b7a";
+// Try multiple CDNs in sequence so an ad-blocker/extension blocking one
+// host doesn't take the charts down entirely. loadChartJS() resolves once
+// Chart.js is available (from whichever source worked) or all have failed.
+function loadChartJS() {
+  const sources = [
+    "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js",
+    "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+  ];
+  return new Promise((resolve) => {
+    let i = 0;
+    function tryNext() {
+      if (typeof Chart !== 'undefined') return resolve(true);
+      if (i >= sources.length) return resolve(false);
+      const s = document.createElement('script');
+      s.src = sources[i++];
+      s.onload = () => resolve(true);
+      s.onerror = tryNext;
+      document.head.appendChild(s);
+    }
+    tryNext();
+  });
 }
+</script>
+<script>
+let chartsReadyPromise = loadChartJS().then((ok) => {
+  if (ok) {
+    Chart.defaults.font.family = "Calibri, 'Segoe UI', Arial, sans-serif";
+    Chart.defaults.color = "#5b6b7a";
+  }
+  return ok;
+});
 const API_BASE = "https://costloop-forecast-api.onrender.com";
 const CHART_NAVY = "#2f5d8a";
 const CHART_ACCENT = "#d68a3e";
@@ -543,8 +568,9 @@ async function checkStatus() {
 
 // ---- Demand-by-store bar chart ----
 let demandChart = null;
-function renderDemandChart(rows) {
-  if (!CHARTS_AVAILABLE) {
+async function renderDemandChart(rows) {
+  const ok = await chartsReadyPromise;
+  if (!ok) {
     document.getElementById('demand-chart').closest('.chart-wrap').innerHTML =
       '<p class="chart-empty">Chart library failed to load — check your connection and reload.</p>';
     return;
@@ -595,14 +621,15 @@ const trendEmpty = document.getElementById('trend-empty');
 const trendWrap = document.getElementById('trend-wrap');
 
 async function loadTrend(storeId, skuId) {
-  if (!CHARTS_AVAILABLE) {
-    trendEmpty.style.display = 'block';
-    trendEmpty.textContent = 'Chart library failed to load — check your connection and reload.';
-    return;
-  }
   trendEmpty.style.display = 'block';
   trendEmpty.textContent = `Loading sales trend for ${storeId}...`;
   trendWrap.style.display = 'none';
+
+  const ok = await chartsReadyPromise;
+  if (!ok) {
+    trendEmpty.textContent = 'Chart library failed to load — check your connection and reload.';
+    return;
+  }
   try {
     const res = await fetch(`${API_BASE}/history?store_id=${encodeURIComponent(storeId)}&sku_id=${encodeURIComponent(skuId)}&days=60`);
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
