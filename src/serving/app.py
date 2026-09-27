@@ -11,14 +11,31 @@ Endpoints:
     POST /recommend-by-date  - store_id + sku_id + date only; the API derives
                                 calendar features and looks up lag/rolling
                                 features from history itself.
-    GET  /daily-forecasts    - no input. Automatically forecasts tomorrow for
-                                every store/sku the model has history for
-                                (or a `limit`-sized subset), using the same
-                                history-derived approach as /recommend-by-date.
+    GET  /daily-forecasts    - forecasts tomorrow for every store/sku the
+                                model has history for (or a `limit`-sized
+                                subset), or for a single store if `store_id`
+                                is passed.
+    GET  /history            - a store+sku's recent actual sales, for
+                                trend charts.
+    POST /login              - lightweight demo login. Returns which store
+                                (or "all stores") the account is scoped to.
+                                See the USERS dict below -- this is NOT
+                                production-grade auth (plaintext password
+                                comparison, no hashing, no token expiry, no
+                                HTTPS-only cookie). It exists to demonstrate
+                                store-level access scoping for the course
+                                project. A real deployment should replace
+                                this with a proper identity provider
+                                (e.g. OAuth/SSO) and issue signed, expiring
+                                tokens verified on every request -- right
+                                now nothing stops a client from calling
+                                /daily-forecasts directly with any store_id
+                                regardless of login.
 """
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional
 
 import lightgbm as lgb
 import numpy as np
@@ -32,6 +49,8 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from src.training.train import FEATURE_COLS  # noqa: E402
+from src.feedback.db import log_override  # noqa: E402
+
 
 MODEL_PATH = ROOT / "data" / "processed" / "model.txt"
 FEATURES_PATH = ROOT / "data" / "processed" / "features.parquet"
@@ -50,6 +69,27 @@ _features_df: pd.DataFrame | None = None
 
 # Safety-stock z-score for ~90% service level (tunable per category)
 SAFETY_STOCK_Z = 1.28
+
+# Demo-only user directory: username -> (password, store_id or None for
+# "all stores" / regional access). Replace with a real user store + hashed
+# passwords + a proper auth flow before using this outside a course project.
+USERS = {
+    "store1_manager": {"password": "store1pass", "store_id": "STORE_1", "role": "store_manager"},
+    "store10_manager": {"password": "store10pass", "store_id": "STORE_10", "role": "store_manager"},
+    "regional_manager": {"password": "regionalpass", "store_id": None, "role": "regional_manager"},
+}
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    username: str
+    role: str
+    store_id: Optional[str] = None  # None means access to all stores
+
 
 
 class ForecastRequest(BaseModel):
@@ -211,25 +251,90 @@ def recommend_by_date(req: RecommendByDateRequest):
     return _recommend_from_row(req.store_id, req.sku_id, row)
 
 
-@app.get("/daily-forecasts", response_model=list[DailyForecastRow])
-def daily_forecasts(limit: int = Query(default=25, ge=1, le=200)):
+class OverrideRequest(BaseModel):
+    store_id: str
+    sku_id: str
+    overridden_qty: float
+    reason: str = ""
+
+
+@app.post("/override")
+def submit_override(req: OverrideRequest):
     """
-    No input required. Forecasts tomorrow (relative to the latest date each
-    store/sku has history for) for up to `limit` store+sku series, so the
-    dashboard can show predictions automatically without anyone filling in
-    a form. This is a synchronous batch computed on request; wire a
-    scheduler (e.g. a Render Cron Job or Airflow/Prefect DAG) to hit this
-    endpoint on a schedule and cache the result if you want it refreshed on
-    a fixed cadence rather than computed per page load.
+    Logs a manager's override of a recommendation to the same SQLite store
+    that src/feedback/fold_into_training.py reads from, so overrides
+    submitted here actually feed back into the next training run.
+    """
+    try:
+        row = _build_row_for_date(req.store_id, req.sku_id, pd.Timestamp.today())
+        system_recommendation = _recommend_from_row(req.store_id, req.sku_id, row).recommended_order_qty
+    except HTTPException:
+        system_recommendation = 0.0
+
+    override_id = log_override(
+        store_id=req.store_id,
+        sku_id=req.sku_id,
+        forecast_date=pd.Timestamp.today().strftime("%Y-%m-%d"),
+        system_recommendation=system_recommendation,
+        manager_override=req.overridden_qty,
+        override_reason=req.reason,
+    )
+    return {"id": override_id, "status": "logged", "system_recommendation": system_recommendation}
+
+
+@app.post("/login", response_model=LoginResponse)
+def login(req: LoginRequest):
+    user = USERS.get(req.username)
+    if not user or user["password"] != req.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return LoginResponse(username=req.username, role=user["role"], store_id=user["store_id"])
+
+
+@app.get("/history")
+def history(store_id: str, sku_id: str, days: int = Query(default=60, ge=7, le=365)):
+    """
+    Returns the last `days` of actual recorded sales for a store+sku, for
+    plotting a trend chart on the frontend. Read-only, no model call.
     """
     df = get_features_df()
-    series_keys = (
-        df[["store_id", "sku_id"]]
-        .drop_duplicates()
-        .sort_values(["store_id", "sku_id"])
-        .head(limit)
-        .itertuples(index=False)
-    )
+    series = df[(df["store_id"] == store_id) & (df["sku_id"] == sku_id)].sort_values("date")
+    if series.empty:
+        raise HTTPException(status_code=404, detail=f"No history found for store_id={store_id}, sku_id={sku_id}")
+
+    tail = series.tail(days)
+    return {
+        "store_id": store_id,
+        "sku_id": sku_id,
+        "dates": tail["date"].dt.strftime("%Y-%m-%d").tolist(),
+        "sales": [round(float(v), 2) for v in tail["sales"].tolist()],
+    }
+
+
+@app.get("/daily-forecasts", response_model=list[DailyForecastRow])
+def daily_forecasts(
+    limit: int = Query(default=25, ge=1, le=200),
+    store_id: Optional[str] = Query(default=None),
+):
+    """
+    Forecasts tomorrow for store/sku series. If `store_id` is given, returns
+    only that store's series (a store manager's scoped view); otherwise
+    returns up to `limit` series across the whole dataset (a regional/admin
+    view). The frontend decides which to call based on who's logged in --
+    the API itself does not enforce that scoping (see the /login docstring
+    above), so this parameter should be treated as a convenience filter,
+    not an access boundary, until real auth is added.
+    """
+    df = get_features_df()
+    keys_df = df[["store_id", "sku_id"]].drop_duplicates().sort_values(["store_id", "sku_id"])
+
+    if store_id:
+        keys_df = keys_df[keys_df["store_id"] == store_id]
+        if keys_df.empty:
+            raise HTTPException(status_code=404, detail=f"No history found for store_id={store_id}")
+    else:
+        keys_df = keys_df.head(limit)
+
+    series_keys = keys_df.itertuples(index=False)
 
     results = []
     for store_id, sku_id in series_keys:

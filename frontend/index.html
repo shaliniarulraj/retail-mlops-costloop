@@ -6,39 +6,114 @@
 <title>Inventory Console</title>
 <style>
   :root {
-    --navy: #1f2d3d;
-    --slate: #4a5a6a;
-    --line: #d8dee4;
-    --bg: #f4f6f8;
+    --navy: #2f5d8a;
+    --navy-soft: #3f74a8;
+    --slate: #64758a;
+    --line: #e3e9ef;
+    --bg: #f6f8fb;
     --card: #ffffff;
-    --accent: #b5651d;
-    --accent-dark: #8f4e16;
+    --accent: #d68a3e;
+    --accent-dark: #c17a2f;
+    --accent-soft: #fbe9d3;
     --ok: #2e7d32;
-    --warn: #b5651d;
-    --err: #b3261e;
-    --text: #1f2d3d;
+    --err: #c0392b;
+    --text: #263646;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: Calibri, "Segoe UI", Arial, sans-serif;
-    background: var(--bg);
+    background: linear-gradient(180deg, #eef3f9 0%, #f6f8fb 260px);
     color: var(--text);
   }
+
+  /* ---- Login screen ---- */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2f5d8a 0%, #1f3f5c 100%);
+    padding: 20px;
+  }
+  #login-card {
+    background: var(--card);
+    border-radius: 8px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+  }
+  #login-card h1 {
+    font-size: 19px;
+    margin: 0 0 4px;
+    color: var(--navy);
+  }
+  #login-card p.sub {
+    font-size: 13px;
+    color: var(--slate);
+    margin: 0 0 22px;
+  }
+  #login-error {
+    display: none;
+    background: #fbeceb;
+    border: 1px solid #e3b3af;
+    color: var(--err);
+    font-size: 13px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-top: 14px;
+  }
+  #login-error.show { display: block; }
+  .login-hint {
+    margin-top: 18px;
+    font-size: 11.5px;
+    color: var(--slate);
+    border-top: 1px solid var(--line);
+    padding-top: 12px;
+    line-height: 1.5;
+  }
+
   header {
-    background: var(--navy);
+    background: linear-gradient(135deg, #2f5d8a 0%, #24476a 100%);
     color: #fff;
-    padding: 20px 28px;
+    padding: 18px 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
   header h1 {
     font-size: 18px;
     font-weight: 600;
     margin: 0;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
   }
+  header .right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  #scope-pill {
+    font-size: 13px;
+    background: rgba(255,255,255,0.08);
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+  #logout-btn {
+    background: transparent;
+    color: #cfd8e0;
+    border: 1px solid rgba(255,255,255,0.25);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 0;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  #logout-btn:hover { border-color: #fff; color: #fff; }
   #status-pill {
     display: flex;
     align-items: center;
@@ -46,43 +121,69 @@
     font-size: 13px;
     background: rgba(255,255,255,0.08);
     padding: 6px 12px;
-    border-radius: 3px;
+    border-radius: 999px;
+    transition: background 0.2s ease;
   }
   #status-dot {
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #999;
+    transition: background 0.3s ease;
   }
-  #status-dot.live { background: #4caf50; }
+  #status-dot.live { background: #4caf50; box-shadow: 0 0 0 3px rgba(76,175,80,0.18); }
   #status-dot.down { background: #d32f2f; }
-  #status-dot.checking { background: #b5651d; }
+  #status-dot.checking { background: var(--accent); }
 
   main {
-    max-width: 960px;
+    max-width: 1080px;
     margin: 28px auto;
     padding: 0 20px 60px;
     display: grid;
     grid-template-columns: 1fr;
     gap: 20px;
   }
-  @media (min-width: 780px) {
+  @media (min-width: 860px) {
     main { grid-template-columns: 1fr 1fr; }
     .full { grid-column: 1 / -1; }
   }
   section.card {
-    background: var(--card);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
     border: 1px solid var(--line);
-    border-radius: 4px;
+    border-radius: 10px;
     padding: 22px 24px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  }
+  section.card:hover {
+    border-color: #cdd9e5;
+    box-shadow: 0 6px 20px rgba(47,93,138,0.08);
+    transform: translateY(-1px);
   }
   section.card h2 {
     font-size: 15px;
     margin: 0 0 16px;
     color: var(--navy);
-    border-bottom: 2px solid var(--accent);
-    padding-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
+  section.card h2::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    margin-left: 12px;
+  }
+  section.card h2 span.accent-bar {
+    display: inline-block;
+    width: 4px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 2px;
+    margin-right: 8px;
+    vertical-align: -2px;
+  }
+
   label {
     display: block;
     font-size: 12.5px;
@@ -91,53 +192,67 @@
   }
   input, select, textarea {
     width: 100%;
-    padding: 8px 10px;
+    padding: 9px 11px;
     border: 1px solid var(--line);
-    border-radius: 3px;
+    border-radius: 5px;
     font-family: inherit;
     font-size: 14px;
     color: var(--text);
     background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--navy-soft);
+    box-shadow: 0 0 0 3px rgba(31,45,61,0.08);
+  }
+  input:disabled { background: #f0f3f5; color: var(--slate); }
   textarea { resize: vertical; min-height: 60px; }
   button {
     margin-top: 18px;
-    background: var(--navy);
+    background: linear-gradient(135deg, #2f5d8a 0%, #24476a 100%);
     color: #fff;
     border: none;
     padding: 10px 18px;
-    border-radius: 3px;
+    border-radius: 6px;
     font-size: 14px;
     cursor: pointer;
+    transition: filter 0.15s ease, transform 0.1s ease;
+    width: 100%;
   }
-  button:hover { background: #16202c; }
-  button.secondary {
-    background: var(--accent);
-  }
-  button.secondary:hover { background: var(--accent-dark); }
-  button:disabled { background: #9aa5af; cursor: not-allowed; }
+  button.inline { width: auto; }
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: scale(0.98); }
+  button.secondary { background: linear-gradient(135deg, #d68a3e 0%, #c17a2f 100%); }
+  button.secondary:hover { filter: brightness(1.08); }
+  button:disabled { background: #a7b0b9; filter: none; cursor: not-allowed; transform: none; }
 
   .result-box {
     margin-top: 16px;
     padding: 14px 16px;
-    border-radius: 3px;
+    border-radius: 6px;
     background: #f0f3f5;
     border: 1px solid var(--line);
     font-size: 13.5px;
     display: none;
+    animation: fade-in 0.25s ease;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   .result-box.show { display: block; }
   .result-box .row {
     display: flex;
     justify-content: space-between;
-    padding: 3px 0;
+    padding: 4px 0;
   }
   .result-box .row span:first-child { color: var(--slate); }
   .result-box .row span:last-child { font-weight: 600; }
   .error-box {
     margin-top: 16px;
     padding: 12px 14px;
-    border-radius: 3px;
+    border-radius: 6px;
     background: #fbeceb;
     border: 1px solid #e3b3af;
     color: var(--err);
@@ -154,37 +269,96 @@
   }
   th, td {
     text-align: left;
-    padding: 7px 8px;
+    padding: 8px 8px;
     border-bottom: 1px solid var(--line);
   }
-  th { color: var(--slate); font-weight: 600; font-size: 12px; }
+  th {
+    color: var(--slate);
+    font-weight: 600;
+    font-size: 12px;
+    position: sticky;
+    top: 0;
+    background: var(--card);
+  }
+  tbody tr {
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  tbody tr:hover { background: #f7f9fa; }
+  tbody tr.selected { background: var(--accent-soft); }
   .log-empty {
     color: var(--slate);
     font-size: 13px;
     padding: 10px 0;
   }
+  .table-scroll {
+    max-height: 340px;
+    overflow-y: auto;
+  }
+  .hint {
+    font-size: 12px;
+    color: var(--slate);
+    margin-top: 8px;
+  }
+  .chart-wrap {
+    position: relative;
+    height: 280px;
+    margin-top: 8px;
+  }
+  .chart-empty {
+    color: var(--slate);
+    font-size: 13px;
+    padding: 30px 0;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
 
+<div id="login-screen">
+  <div id="login-card">
+    <h1>Inventory Console</h1>
+    <p class="sub">Sign in to see your store's forecasts.</p>
+    <form id="login-form">
+      <label for="login-user">Username</label>
+      <input type="text" id="login-user" autocomplete="username" required>
+
+      <label for="login-pass">Password</label>
+      <input type="password" id="login-pass" autocomplete="current-password" required>
+
+      <button type="submit" id="login-submit">Sign In</button>
+    </form>
+    <div class="error-box" id="login-error"></div>
+    <div class="login-hint">
+      Demo accounts — store1_manager / store1pass · store10_manager / store10pass · regional_manager / regionalpass (sees all stores).
+    </div>
+  </div>
+</div>
+
+<div id="app-screen" style="display:none">
+
 <header>
   <h1>Inventory Console</h1>
-  <div id="status-pill">
-    <div id="status-dot" class="checking"></div>
-    <span id="status-text">Checking API...</span>
+  <div class="right">
+    <span id="scope-pill"></span>
+    <div id="status-pill">
+      <div id="status-dot" class="checking"></div>
+      <span id="status-text">Checking API...</span>
+    </div>
+    <button id="logout-btn" class="inline">Sign out</button>
   </div>
 </header>
 
 <main>
 
   <section class="card">
-    <h2>Get Recommendation</h2>
+    <h2><span><span class="accent-bar"></span>Get Recommendation</span></h2>
     <form id="rec-form">
       <label for="store">Store ID</label>
-      <input type="text" id="store" placeholder="e.g. 12" required>
+      <input type="text" id="store" placeholder="e.g. STORE_1" required>
 
       <label for="sku">SKU ID</label>
-      <input type="text" id="sku" placeholder="e.g. FOODS_3_090" required>
+      <input type="text" id="sku" placeholder="e.g. SKU_TOTAL" required>
 
       <label for="date">Date</label>
       <input type="date" id="date" required>
@@ -196,13 +370,13 @@
   </section>
 
   <section class="card">
-    <h2>Manager Override</h2>
+    <h2><span><span class="accent-bar"></span>Manager Override</span></h2>
     <form id="override-form">
       <label for="ov-store">Store ID</label>
-      <input type="text" id="ov-store" placeholder="e.g. 12" required>
+      <input type="text" id="ov-store" placeholder="e.g. STORE_1" required>
 
       <label for="ov-sku">SKU ID</label>
-      <input type="text" id="ov-sku" placeholder="e.g. FOODS_3_090" required>
+      <input type="text" id="ov-sku" placeholder="e.g. SKU_TOTAL" required>
 
       <label for="ov-qty">Overridden Quantity</label>
       <input type="number" id="ov-qty" min="0" required>
@@ -217,18 +391,33 @@
   </section>
 
   <section class="card full">
-    <h2>Daily Forecasts</h2>
-    <div id="daily-status" class="log-empty">Loading today's forecasts...</div>
-    <table id="daily-table" style="display:none">
-      <thead>
-        <tr><th>Store</th><th>SKU</th><th>Date</th><th>Predicted demand</th><th>Reorder qty</th><th>Safety stock</th><th>Weekend</th><th>Special day</th></tr>
-      </thead>
-      <tbody id="daily-body"></tbody>
-    </table>
+    <h2><span><span class="accent-bar"></span>Demand by Store</span></h2>
+    <div class="chart-wrap"><canvas id="demand-chart"></canvas></div>
+    <p class="hint" id="demand-hint">From tomorrow's daily forecasts.</p>
   </section>
 
   <section class="card full">
-    <h2>Recent Overrides</h2>
+    <h2><span><span class="accent-bar"></span>Sales Trend</span></h2>
+    <div id="trend-empty" class="chart-empty">Look up a recommendation, or click a row in Daily Forecasts, to see that store's recent sales trend.</div>
+    <div class="chart-wrap" id="trend-wrap" style="display:none"><canvas id="trend-chart"></canvas></div>
+  </section>
+
+  <section class="card full">
+    <h2><span><span class="accent-bar"></span>Daily Forecasts</span></h2>
+    <div id="daily-status" class="log-empty">Loading today's forecasts...</div>
+    <div class="table-scroll">
+      <table id="daily-table" style="display:none">
+        <thead>
+          <tr><th>Store</th><th>SKU</th><th>Date</th><th>Predicted demand</th><th>Reorder qty</th><th>Safety stock</th><th>Weekend</th><th>Special day</th></tr>
+        </thead>
+        <tbody id="daily-body"></tbody>
+      </table>
+    </div>
+    <p class="hint">Click a row to plot that store's sales trend above.</p>
+  </section>
+
+  <section class="card full">
+    <h2><span><span class="accent-bar"></span>Recent Overrides</span></h2>
     <div id="log-wrap">
       <div class="log-empty" id="log-empty">No overrides submitted this session.</div>
       <table id="log-table" style="display:none">
@@ -242,8 +431,93 @@
 
 </main>
 
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script>
+const CHARTS_AVAILABLE = typeof Chart !== 'undefined';
+if (CHARTS_AVAILABLE) {
+  Chart.defaults.font.family = "Calibri, 'Segoe UI', Arial, sans-serif";
+  Chart.defaults.color = "#5b6b7a";
+}
 const API_BASE = "https://costloop-forecast-api.onrender.com";
+const CHART_NAVY = "#2f5d8a";
+const CHART_ACCENT = "#d68a3e";
+
+// ---- Session (per-browser-tab; cleared on close, same as before login existed) ----
+let session = null; // { username, role, store_id }
+
+const loginScreen = document.getElementById('login-screen');
+const appScreen = document.getElementById('app-screen');
+const loginForm = document.getElementById('login-form');
+const loginSubmit = document.getElementById('login-submit');
+const loginError = document.getElementById('login-error');
+const scopePill = document.getElementById('scope-pill');
+const logoutBtn = document.getElementById('logout-btn');
+const storeField = document.getElementById('store');
+const ovStoreField = document.getElementById('ov-store');
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginError.classList.remove('show');
+  loginSubmit.disabled = true;
+  loginSubmit.textContent = 'Signing in...';
+
+  const username = document.getElementById('login-user').value;
+  const password = document.getElementById('login-pass').value;
+
+  try {
+    const res = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || `Login failed (${res.status})`);
+    }
+    session = await res.json();
+    enterApp();
+  } catch (err) {
+    loginError.textContent = err.message.includes('fetch')
+      ? 'Could not reach the API. It may be waking up — try again in a few seconds.'
+      : err.message;
+    loginError.classList.add('show');
+  } finally {
+    loginSubmit.disabled = false;
+    loginSubmit.textContent = 'Sign In';
+  }
+});
+
+logoutBtn.addEventListener('click', () => {
+  session = null;
+  appScreen.style.display = 'none';
+  loginScreen.style.display = 'flex';
+  loginForm.reset();
+});
+
+function enterApp() {
+  loginScreen.style.display = 'none';
+  appScreen.style.display = 'block';
+
+  const scoped = session.store_id !== null;
+  scopePill.textContent = scoped ? `Store: ${session.store_id}` : `${session.username} · all stores`;
+
+  // Store managers get their store pre-filled and locked; regional
+  // managers can look up any store since they're not scoped to one.
+  if (scoped) {
+    storeField.value = session.store_id;
+    storeField.disabled = true;
+    ovStoreField.value = session.store_id;
+    ovStoreField.disabled = true;
+  } else {
+    storeField.disabled = false;
+    ovStoreField.disabled = false;
+  }
+
+  checkStatus();
+  loadDailyForecasts();
+}
 
 // ---- Status check ----
 const statusDot = document.getElementById('status-dot');
@@ -266,27 +540,148 @@ async function checkStatus() {
     setTimeout(checkStatus, 5000);
   }
 }
-checkStatus();
 
-// ---- Daily forecasts (auto-loads, no input) ----
+// ---- Demand-by-store bar chart ----
+let demandChart = null;
+function renderDemandChart(rows) {
+  if (!CHARTS_AVAILABLE) {
+    document.getElementById('demand-chart').closest('.chart-wrap').innerHTML =
+      '<p class="chart-empty">Chart library failed to load — check your connection and reload.</p>';
+    return;
+  }
+  const canvas = document.getElementById('demand-chart');
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+  gradient.addColorStop(0, '#4d80b3');
+  gradient.addColorStop(1, '#9fc0dd');
+
+  const labels = rows.map(r => r.store_id);
+  const data = rows.map(r => r.predicted_demand);
+
+  if (demandChart) demandChart.destroy();
+  demandChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Predicted demand',
+        data,
+        backgroundColor: gradient,
+        borderRadius: 4,
+        maxBarThickness: 28
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#eef2f6' }, beginAtZero: true }
+      },
+      onClick: (evt, elements) => {
+        if (elements.length) {
+          const row = rows[elements[0].index];
+          loadTrend(row.store_id, row.sku_id);
+        }
+      }
+    }
+  });
+}
+
+// ---- Sales trend line chart ----
+let trendChart = null;
+const trendEmpty = document.getElementById('trend-empty');
+const trendWrap = document.getElementById('trend-wrap');
+
+async function loadTrend(storeId, skuId) {
+  if (!CHARTS_AVAILABLE) {
+    trendEmpty.style.display = 'block';
+    trendEmpty.textContent = 'Chart library failed to load — check your connection and reload.';
+    return;
+  }
+  trendEmpty.style.display = 'block';
+  trendEmpty.textContent = `Loading sales trend for ${storeId}...`;
+  trendWrap.style.display = 'none';
+  try {
+    const res = await fetch(`${API_BASE}/history?store_id=${encodeURIComponent(storeId)}&sku_id=${encodeURIComponent(skuId)}&days=60`);
+    if (!res.ok) throw new Error(`Request failed (${res.status})`);
+    const data = await res.json();
+
+    const canvas = document.getElementById('trend-chart');
+    const ctx = canvas.getContext('2d');
+    const fillGradient = ctx.createLinearGradient(0, 0, 0, 260);
+    fillGradient.addColorStop(0, 'rgba(214,138,62,0.28)');
+    fillGradient.addColorStop(1, 'rgba(214,138,62,0.02)');
+
+    if (trendChart) trendChart.destroy();
+    trendChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: data.dates,
+        datasets: [{
+          label: `${storeId} · ${skuId}`,
+          data: data.sales,
+          borderColor: CHART_ACCENT,
+          backgroundColor: fillGradient,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0,
+          borderWidth: 2.5
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top', align: 'end' } },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } },
+          y: { grid: { color: '#eef2f6' } }
+        }
+      }
+    });
+    trendEmpty.style.display = 'none';
+    trendWrap.style.display = 'block';
+  } catch (err) {
+    trendEmpty.style.display = 'block';
+    trendWrap.style.display = 'none';
+    trendEmpty.textContent = err.message.includes('fetch')
+      ? 'Could not reach the API for the sales trend.'
+      : `Could not load sales trend: ${err.message}`;
+  }
+}
+
+// ---- Daily forecasts (auto-loads, scoped to logged-in store if any) ----
 const dailyStatus = document.getElementById('daily-status');
 const dailyTable = document.getElementById('daily-table');
 const dailyBody = document.getElementById('daily-body');
+const demandHint = document.getElementById('demand-hint');
+let lastDailyRows = [];
 
 async function loadDailyForecasts() {
   dailyStatus.textContent = "Loading today's forecasts...";
   dailyStatus.style.display = 'block';
   dailyTable.style.display = 'none';
+
+  const scoped = session && session.store_id !== null;
+  const url = scoped
+    ? `${API_BASE}/daily-forecasts?store_id=${encodeURIComponent(session.store_id)}`
+    : `${API_BASE}/daily-forecasts?limit=25`;
+  demandHint.textContent = scoped
+    ? `Tomorrow's forecast for ${session.store_id}.`
+    : "From tomorrow's daily forecasts, across all stores currently loaded.";
+
   try {
-    const res = await fetch(`${API_BASE}/daily-forecasts?limit=25`);
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`Request failed (${res.status})`);
     const rows = await res.json();
     if (!rows.length) {
       dailyStatus.textContent = 'No forecasts available.';
       return;
     }
-    dailyBody.innerHTML = rows.map(r => `
-      <tr>
+    lastDailyRows = rows;
+    dailyBody.innerHTML = rows.map((r, i) => `
+      <tr data-index="${i}">
         <td>${r.store_id}</td>
         <td>${r.sku_id}</td>
         <td>${r.date}</td>
@@ -299,6 +694,18 @@ async function loadDailyForecasts() {
     `).join('');
     dailyStatus.style.display = 'none';
     dailyTable.style.display = 'table';
+    renderDemandChart(rows);
+
+    dailyBody.querySelectorAll('tr').forEach(tr => {
+      tr.addEventListener('click', () => {
+        dailyBody.querySelectorAll('tr').forEach(t => t.classList.remove('selected'));
+        tr.classList.add('selected');
+        const row = lastDailyRows[Number(tr.dataset.index)];
+        loadTrend(row.store_id, row.sku_id);
+      });
+    });
+
+    if (rows.length === 1) loadTrend(rows[0].store_id, rows[0].sku_id);
   } catch (err) {
     dailyStatus.textContent = err.message.includes('fetch')
       ? "API waking up — daily forecasts will load automatically once it's ready."
@@ -306,7 +713,6 @@ async function loadDailyForecasts() {
     setTimeout(loadDailyForecasts, 8000);
   }
 }
-loadDailyForecasts();
 
 // ---- Recommendation form ----
 const recForm = document.getElementById('rec-form');
@@ -321,11 +727,9 @@ recForm.addEventListener('submit', async (e) => {
   recSubmit.disabled = true;
   recSubmit.textContent = 'Fetching...';
 
-  const payload = {
-    store_id: document.getElementById('store').value,
-    sku_id: document.getElementById('sku').value,
-    date: document.getElementById('date').value
-  };
+  const storeId = document.getElementById('store').value;
+  const skuId = document.getElementById('sku').value;
+  const payload = { store_id: storeId, sku_id: skuId, date: document.getElementById('date').value };
 
   try {
     const res = await fetch(`${API_BASE}/recommend-by-date`, {
@@ -342,6 +746,7 @@ recForm.addEventListener('submit', async (e) => {
       <div class="row"><span>Safety stock</span><span>${data.safety_stock ?? '—'}</span></div>
     `;
     recResult.classList.add('show');
+    loadTrend(storeId, skuId);
   } catch (err) {
     recError.textContent = err.message.includes('fetch')
       ? 'Could not reach the API. It may still be waking up — try again in a few seconds.'
@@ -392,7 +797,8 @@ ovForm.addEventListener('submit', async (e) => {
     row.innerHTML = `<td>${store}</td><td>${sku}</td><td>${qty}</td><td>${reason}</td><td>${time}</td>`;
     logBody.prepend(row);
 
-    ovForm.reset();
+    document.getElementById('ov-qty').value = '';
+    document.getElementById('ov-reason').value = '';
   } catch (err) {
     ovError.textContent = err.message.includes('fetch')
       ? 'Could not reach the API. It may still be waking up — try again in a few seconds.'
