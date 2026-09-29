@@ -11,3 +11,4 @@ data/processed/*
 .DS_Store
 data/raw/*.csv
 venv/
+!data/processed/latest_features.csv

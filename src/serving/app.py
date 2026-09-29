@@ -142,11 +142,18 @@ def get_model() -> lgb.Booster:
     return _model
 
 
-def get_features_df() -> pd.DataFrame:
+def get_features() -> pd.DataFrame:
     global _features_df
     if _features_df is None:
-        _features_df = pd.read_parquet(FEATURES_PATH)
-        _features_df["date"] = pd.to_datetime(_features_df["date"])
+        slim_path = ROOT / "data" / "processed" / "latest_features.csv"
+        if slim_path.exists():
+            _features_df = pd.read_csv(slim_path)
+            _features_df["date"] = pd.to_datetime(_features_df["date"])
+        else:
+            raise HTTPException(
+                status_code=503,
+                detail="Feature store not found. Run the slim feature export first."
+            )
     return _features_df
 
 
